@@ -1,0 +1,16 @@
+	Dose	TCP
+RT01	64	43
+RT01	74	55
+MD Anderson	70	43
+MD Anderson	78	62
+RMH	64	59
+RMH	74	71
+Fox Chase	69	68
+Fox Chase	71	74
+Fox Chase	76	69
+Fox Chase	70	19
+Fox Chase	72	31
+Fox Chase	76	84
+Fox Chase	70	8
+Fox Chase	73	23
+Fox Chase	76	11

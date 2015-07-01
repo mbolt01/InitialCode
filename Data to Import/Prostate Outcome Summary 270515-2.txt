@@ -1,0 +1,4 @@
+	Dose	TCP
+Fox Chase	69	44
+Fox Chase	71	51
+Fox Chase	76	64
