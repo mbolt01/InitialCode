@@ -5,12 +5,15 @@ MD Anderson	70	43
 MD Anderson	78	62
 RMH	64	59
 RMH	74	71
-Fox Chase	69	68
-Fox Chase	71	74
-Fox Chase	76	69
-Fox Chase	70	19
-Fox Chase	72	31
-Fox Chase	76	84
-Fox Chase	70	8
-Fox Chase	73	23
-Fox Chase	76	11
+Fox Chase Low-All	69	68
+Fox Chase Low-All	71	74
+Fox Chase Low-All	76	69
+Fox Chase Low-Unf	69	44
+Fox Chase Low-Unf	71	51
+Fox Chase Low-Unf	76	64
+Fox Chase Med	70	19
+Fox Chase Med	72	31
+Fox Chase Med	76	84
+Fox Chase High	70	8
+Fox Chase High	73	23
+Fox Chase High	76	11
