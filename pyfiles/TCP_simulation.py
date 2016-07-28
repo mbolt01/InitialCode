@@ -204,8 +204,11 @@ d_list_type = meas_d_list
 #d_list_type = None
 
 d_int = 74
+tcp_pt = 80
 
 d_use = [None,d_list_type] # for plotting standard and list of doses on same plot
+
+n0_param = None
 
 for j in d_use:
 
@@ -218,10 +221,11 @@ for j in d_use:
                                   d_trend=0,
                                   max_d=100,
                                   dose_of_interest=d_int,
-                                  TCP_input = 70.0,
+                                  TCP_input = tcp_pt,
                                   d_list = j,
-                                  n0 = 170)
+                                  n0 = n0_param)
     
+    n0_param = TCP_results1[6] # reuse the first set of fitting results to avoid repeating the fit
 
     #print(TCP_results1[12])
     ## only plot the results in which dose is delivered
@@ -243,6 +247,7 @@ for j in d_use:
     plt.title('Demo showing missed fractions and hyperfractionation')
     plt.xlabel('Nominal Dose')
     plt.ylabel('TCP')
+plt.plot(d_int,tcp_pt/100,marker='x')
 
 ## save plots in multiple formats
 
