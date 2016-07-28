@@ -128,7 +128,7 @@ def alphacalc_lognormal(alphabeta, sd):
 # In[5]:
 
 ## function to calculate the difference between input TCP and calculated TCP. only N0 is varied as want to estimate this.
-def calc_dif_sq(x,TCP, n, alphabeta_use, alphabeta_sd_use,d,d_shift,d_sd,d_trend,max_d,dose_of_interest):
+def calc_dif_sq(x,TCP, n, alphabeta_use, alphabeta_sd_use,d,d_shift,d_sd,d_trend,max_d,dose_of_interest,TCP_input):
     TCP_in = TCP
     
 #    TCP_calc_all = completeTCPcalc(n=2000,
@@ -149,7 +149,8 @@ def calc_dif_sq(x,TCP, n, alphabeta_use, alphabeta_sd_use,d,d_shift,d_sd,d_trend
                                d_trend=d_trend,
                                n0=x, # this needs to be able to vary to allow optimisation of the value
                                max_d=max_d,
-                               dose_of_interest=dose_of_interest)
+                               dose_of_interest=dose_of_interest,
+                               TCP_input=TCP_input)
     TCP_result = TCP_calc_all[10] ## Get only the result of interest (N0 is in posn. 10 int he returned tuple)
     
     TCP_Dif_sq = (TCP_in - TCP_result)**2 ## difference in squares to minimise
@@ -160,7 +161,7 @@ def calc_dif_sq(x,TCP, n, alphabeta_use, alphabeta_sd_use,d,d_shift,d_sd,d_trend
 
 ## Determine N0 by minimising difference betwen calculate TCP and input TCP.
 
-def n0_determination(TCP_input,
+def n0_determination_orig(TCP_input,
                      repeats,
                      n,
                      alphabeta_use,
@@ -254,6 +255,82 @@ def n0_determination_old(TCP,d=2,D=74,ab=3,b=0.02):
     n0 = -np.log(TCP)/np.exp(-(a*D)-(b*d*D))
     return n0
 
+#%%
+def n0_determination(TCP_input,
+                     n,
+                     n0,
+                     alphabeta_use,
+                     alphabeta_sd_use,
+                     d,
+                     d_shift,
+                     d_sd,
+                     d_trend,
+                     max_d,
+                     dose_of_interest,
+                     repeats = 10):
+    
+    ## TCP to fit N0 to. This will come from the literature.
+    
+## IF value of N0 is supplied, then do not need to fit it...    
+    
+    TCP_input = TCP_input
+    
+    ## Run optimisation multiple times to ensure accuracy (as based on random data)
+    if repeats < 10:
+        repeats = 10
+        print('Number of repeats for fitting N0 has been set to the minimum reccomended value of 10.')
+    else:
+        repeats = repeats
+    n=3000 # set value of n for reliable fitting
+    n0=n0
+    alphabeta_use=alphabeta_use
+    alphabeta_sd_use=alphabeta_sd_use
+    d=d
+    d_shift=d_shift
+    d_sd=d_sd
+    d_trend=d_trend
+    max_d=max_d
+    dose_of_interest=dose_of_interest
+    
+    ## store the fit results in this list
+    fit_results=[]
+
+    #TCP, n, alphabeta_use, alphabeta_sd_use,d,d_shift,d_sd,max_d,dose_of_interest
+    
+### This is minimising the difference of squares returned by the function.
+### This could probably be made to return the value if multiple TCP/Dose points are passed to it?
+        
+    print('Fitting N0 value')
+    print('')
+    
+    for i in range(0,repeats):
+        print('\r' + 'Fitting N0: Stage ' + str(i+1) + ' of ' + str(repeats), end="")
+        n0_result = opt.minimize_scalar(calc_dif_sq,method='brent',
+                                        args=(TCP_input,
+                                        n,
+                                        alphabeta_use,
+                                        alphabeta_sd_use,
+                                        d,
+                                        d_shift,
+                                        d_sd,
+                                        d_trend,
+                                        max_d,
+                                        dose_of_interest,
+                                        TCP_input))
+        
+        fit_results.append(n0_result.x)
+    fit_results.sort() # sort the repeated results to eliminate outliers
+    #print(fit_results)
+    #print(np.mean(fit_results))
+    num_outliers = 3
+    fit_results_trim = fit_results[num_outliers:-num_outliers]
+
+    n0_mean_fit = sum(fit_results_trim)/len(fit_results_trim)
+    #print(n0_mean_fit)
+    print('')
+    print('Fitting Completed')
+    
+    return n0_mean_fit#, TCP_Calc_min[10]
 
 # In[8]:
 
@@ -410,7 +487,7 @@ def doses_array(n, n_frac, d, d_shift, d_sd, d_trend=0):
         
     #print(doses)
     return doses_np_trend
-
+    
 
 # In[16]:
 
@@ -482,6 +559,15 @@ def saveasCSV(filename, array):
     fl.close()
 
 
+#%%
+def d_list_sort(d_list,n_frac,n):
+    d_list_pad = d_list + [0] * (n_frac - len(d_list))# pad with zero doses 
+    #print(d_list_pad)
+    doses = [d_list_pad for i in range(n)] # set the provided list as the doses
+    doses = np.array(doses) # convert to numpy array for use to with other data types
+    return doses
+
+
 # In[21]:
 
 ## Calc Number of fractions and nominal dose per fraction to get to max dose
@@ -493,29 +579,58 @@ def completeTCPcalc(n,
                    d_shift,
                    d_sd,
                    d_trend,
-                   n0,
                    max_d,
-                   dose_of_interest):
-    
+                   dose_of_interest,
+                   TCP_input,
+                   d_list=None,
+                   n0=None):
+                       
     fractions, nom_doses, n_frac = no_frac_nom_doses_array(max_d,d)
 
+    if d_list is not None:
+        doses = d_list_sort(d_list,n_frac,n)
+        #d_list_pad = d_list + [0] * (n_frac - len(d_list))# pad with zero doses 
+        #print(d_list_pad)
+        #doses = [d_list_pad for i in range(n)] # set the provided list as the doses
+        #doses = np.array(doses) # convert to numpy array for use to with other data types
+    else:
+        doses = doses_array(n, n_frac, d, d_shift, d_sd, d_trend)
+    #print(doses)
+    #**
+    ## array of doses after each fraction for each patient
+        
     ## create array containing number of patients in population
     patients = create_patients(n)
+    #print(patients)
     
     ## Creat array of alpha and veta values for each patient
     alpha_and_beta = create_alpha_beta_array(n, alphabeta_use, alphabeta_sd_use)
-
-    ## array of doses after each fraction for each patient
-    doses = doses_array(n, n_frac, d, d_shift, d_sd, d_trend)
-
+    
     ## put all results in an array with a patient on each row
     all_results = combine_results(patients, alpha_and_beta, doses)
 
     ## Calc cumulative SF for all patients (also return individual fraction SFs)
     SFs, SF_cum = calc_all_SFs(patients, n, n_frac, alpha_and_beta, doses)
+    
+    ## determine N0 value to use if none provided
+    if n0 is None:
+        print('N0 not provided')
+        n0_use = n0_determination(TCP_input,
+                                  n,
+                                  n0,
+                                  alphabeta_use,
+                                  alphabeta_sd_use,
+                                  d,
+                                  d_shift,
+                                  d_sd,
+                                  d_trend,
+                                  max_d,
+                                  dose_of_interest)
+    else:
+        n0_use = n0
 
     ## Calculate TCP for all individual patients and fractions
-    TCPs = TCPcalc(sf = SF_cum, n0=n0)
+    TCPs = TCPcalc(sf = SF_cum, n0=n0_use)
 
     ## Calculate population TCP by averaging down the columns
     TCP_pop = np.mean(TCPs, axis = 0)
@@ -534,7 +649,7 @@ def completeTCPcalc(n,
     TCP_cure = (TCPs_of_interest).sum()
     TCP_cure_percent = 100*TCP_cure/n
     
-    return n,alphabeta_use,alphabeta_sd_use,d,d_shift,d_sd,n0,max_d,dose_of_interest,frac_of_interest,TCP_cure_percent, TCPs, TCP_pop, nom_doses, d_trend
+    return n,alphabeta_use,alphabeta_sd_use,d,d_shift,d_sd,n0_use,max_d,dose_of_interest,frac_of_interest,TCP_cure_percent, TCPs, TCP_pop, nom_doses, d_trend
 
 
 # In[22]:
@@ -743,15 +858,18 @@ def round_n(x,n):
 
 def dose_iter(dose_var=0.5,
              dose_max=3,
-             ab_var=0.5,
+             ab_var=1,
              ab_max=4,
              ab_min=2,
-             di_var=1,
-             di_max=80,
-             di_min=64,
-             n0_nominal=150,
-             n0_var=10,
-             n0_range=5):
+             ab_sd_var=0.5,
+             ab_sd_max=1,
+             ab_sd_min=0.5,
+             di_var=0,
+             di_max=74,
+             di_min=74,
+             n0_nominal=160,
+             n0_var=5,
+             n0_range=10):
     
     ## dose shifts to test
     dose_var = dose_var # dose step size
@@ -767,6 +885,14 @@ def dose_iter(dose_var=0.5,
     ab_min = ab_min
     ab_number = (ab_max-ab_min)/ab_var+1 # number of points
     ab_vals = np.linspace(ab_min,ab_max,ab_number) # different a/b values to test
+
+    ## alphabeta_SD values to test
+    ab_sd_var = ab_sd_var # step size
+    ab_sd_max = ab_sd_max
+    ab_sd_min = ab_sd_min
+    ab_sd_number = (ab_sd_max-ab_sd_min)/ab_sd_var+1 # number of points
+    ab_sd_vals = np.linspace(ab_sd_min,ab_sd_max,ab_sd_number) # different a/b values to test
+
 
     ## dose of interest to test
     di_var = di_var # dose step size
@@ -785,8 +911,8 @@ def dose_iter(dose_var=0.5,
     n0_number = (n0_max-n0_min)/n0_var+1
     n0_vals = np.linspace(n0_min,n0_max,n0_number)
 
-    total_tests = len(dose_vals)*len(ab_vals)*len(di_vals)*len(n0_vals)
-    test_val_iterator = itertools.product(dose_vals,ab_vals,di_vals,n0_vals)
+    total_tests = len(dose_vals)*len(ab_vals)*len(di_vals)*len(n0_vals)*len(ab_sd_vals)
+    test_val_iterator = itertools.product(dose_vals,ab_vals,di_vals,n0_vals,ab_sd_vals)
 
     test_vals = list(test_val_iterator) #list of all combinations of parameters
     num_its = len(test_vals) #number of iterations
@@ -826,6 +952,7 @@ def TCP_full(k=10,
              TCP_input=80,
              repeats=20,
              n=1000,
+             n0=169,
              alphabeta_use=3,
              alphabeta_sd_use=1,
              d=2,
@@ -840,6 +967,7 @@ def TCP_full(k=10,
     TCP_input=TCP_input
     repeats=repeats
     n=n
+    n0=n0
     alphabeta_use=alphabeta_use
     alphabeta_sd_use=alphabeta_sd_use
     d=d
@@ -857,17 +985,22 @@ def TCP_full(k=10,
     print("Starting TCP Simulation")
     
     #N0 determination should use nominal values of dose to assume average?
-    n0_mean_fit, fit_results, trimmed = n0_determination(TCP_input=TCP_input,
-                                                         repeats=repeats,
-                                                         n=n,
-                                                         alphabeta_use=alphabeta_use,
-                                                         alphabeta_sd_use=alphabeta_sd_use,
-                                                         d=d,
-                                                         d_shift=0,
-                                                         d_sd=0,
-                                                         d_trend=0,
-                                                         max_d=max_d,
-                                                         dose_of_interest=dose_of_interest)
+    ###orig has n0_mean_fit, fit_results, trimmed = n0_determ....
+    if n0 is None:
+        n0_mean_fit = n0_determination(TCP_input=TCP_input,
+                                       repeats=repeats,
+                                       n=n,
+                                       n0=n0,
+                                       alphabeta_use=alphabeta_use,
+                                       alphabeta_sd_use=alphabeta_sd_use,
+                                       d=d,
+                                       d_shift=0,
+                                       d_sd=0,
+                                       d_trend=0,
+                                       max_d=max_d,
+                                       dose_of_interest=dose_of_interest)
+    else:
+        n0_mean_fit = n0
     
     set_precision = 5 #round to nearest 5
     n0_mean_fit_set_precision = round_n(n0_mean_fit,set_precision)
@@ -875,16 +1008,16 @@ def TCP_full(k=10,
     ab_range = 1
     
     iter_list = dose_iter(dose_var=0.5,
-                          dose_max=2,
+                          dose_max=4,
                           ab_var=1,
                           ab_max=alphabeta_use + ab_range,
                           ab_min=alphabeta_use - ab_range,
                           di_var=2,
                           di_max=80,
-                          di_min=70,
+                          di_min=64,
                           n0_nominal=n0_mean_fit_set_precision,
-                          n0_var=10,
-                          n0_range=5)
+                          n0_var=5,
+                          n0_range=10)
     
     print("N0 mean fit (nearest " + str(set_precision) + "): " + str(n0_mean_fit_set_precision))
     
@@ -906,14 +1039,23 @@ def TCP_full(k=10,
     all_test_results_array = []
     
     #print(test_vals)
-
+    start_time = dt.datetime.now()
     progress_perc = 0
     for j in test_vals:
 
+        current_time = dt.datetime.now()
+
         progress_perc = progress_perc + (100/len(test_vals))
         no_completed = progress_perc/100 * len(test_vals)
+        
+        dif_secs = (current_time-start_time).seconds
+        
+        remaining_secs = (num_its-no_completed)*(dif_secs/no_completed)
+        remaining_mins = remaining_secs/60
+        #print(remaining_secs)
+        
         #print('\r' + "TCP Calculation: " + str(int(progress_perc)) + "% completed", end='')
-        print('\r' + "Running TCP Simulation: " + str(round(no_completed,0)) + " of " + str(len(test_vals)) + " (" + str(round(progress_perc,1)) + "% completed)", end='')
+        print('\r' + "Running TCP Simulation: " + str(round(no_completed,0)) + " of " + str(len(test_vals)) + " (" + str(round(progress_perc,1)) + "% completed)" + " (" + str(round(remaining_mins,1)) + " mins remaining)", end='')
 
         results_array = []
 
@@ -922,7 +1064,7 @@ def TCP_full(k=10,
         for i in range(0,k):
             t = completeTCPcalc(n,
                             alphabeta_use = j[1],
-                            alphabeta_sd_use = alphabeta_sd_use,
+                            alphabeta_sd_use = j[4],
                             d = d,
                             d_shift = j[0],
                             d_sd = d_sd,
