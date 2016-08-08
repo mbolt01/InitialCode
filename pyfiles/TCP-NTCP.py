@@ -107,57 +107,10 @@ def alphacalc_lognormal(alphabeta, sd):
     return alpha, beta
 ## alpha/beta can be calced form the returned alpha and beta values
 
-
 # ###N0 varies depending on the a/b Std Dev!!!
-# 
-# Need to rethink how to determine N0 in a simple way.
-# 
-# - Ideally re-write entire thing to accept a set of parameters and then use these single parameters to feed into other functions.
-# 
-# 
-# **Ideas**
-# Could use some sort of fitting with all parameters fixed except N0.
-# Then try and minimise the difference between TCP_calc and TCP_input?
-# - Can set it to repeat the TCP calc for 1000 patients, then returnt he TCP at d_interest.
-# - This would use just a single set of nominal parameters (as input by user/in model).
-# - Only after this does the simulation of multiple parameter variations start.
-# 
-# I cannot think of another way of doing this, as I ahve been doing it manually (trial and error) so far...
-# 
-
-# In[5]:
-
-## function to calculate the difference between input TCP and calculated TCP. only N0 is varied as want to estimate this.
-def calc_dif_sq_orig(x,TCP, n, alphabeta_use, alphabeta_sd_use,d,d_shift,d_sd,d_trend,max_d,dose_of_interest,TCP_input):
-    TCP_in = TCP
-    
-#    TCP_calc_all = completeTCPcalc(n=2000,
-#                               alphabeta_use=3,
-#                               alphabeta_sd_use=1,
-#                               d=2,
-#                               d_shift=0,
-#                               d_sd=1,
-#                               n0=x, # this needs to be able to vary to allow optimisation of the value
-#                               max_d=100,
-#                               dose_of_interest=74)
-    TCP_calc_all = completeTCPcalc(n=n,
-                               alphabeta_use=alphabeta_use,
-                               alphabeta_sd_use=alphabeta_sd_use,
-                               d=d,
-                               d_shift=d_shift,
-                               d_sd=d_sd,
-                               d_trend=d_trend,
-                               n0=x, # this needs to be able to vary to allow optimisation of the value
-                               max_d=max_d,
-                               dose_of_interest=dose_of_interest,
-                               TCP_input=TCP_input)
-    TCP_result = TCP_calc_all[10] ## Get only the result of interest (N0 is in posn. 10 int he returned tuple)
-    
-    TCP_Dif_sq = (TCP_in - TCP_result)**2 ## difference in squares to minimise
-    return TCP_Dif_sq
 
 
-# In[5]:
+#%%
 
 ## function to calculate the difference between input TCP and calculated TCP. only N0 is varied as want to estimate this.
 def calc_dif_sq(x,TCP, n, alphabeta_use, alphabeta_sd_use,d,d_shift,d_sd,d_trend,max_d,dose_of_interest,dose_input,TCP_input,weights_input=None):
@@ -195,103 +148,7 @@ def calc_dif_sq(x,TCP, n, alphabeta_use, alphabeta_sd_use,d,d_shift,d_sd,d_trend
         #print(TCP_Dif_sq_sum)
     return TCP_Dif_sq_sum
 
-# In[6]:
 
-## Determine N0 by minimising difference betwen calculate TCP and input TCP.
-
-#def n0_determination_orig(TCP_input,
-#                     repeats,
-#                     n,
-#                     alphabeta_use,
-#                     alphabeta_sd_use,
-#                     d,
-#                     d_shift,
-#                     d_sd,
-#                     d_trend,
-#                     max_d,
-#                     dose_of_interest):
-#    
-#    ## TCP to fit N0 to. This will come from the literature.
-#    
-#    TCP_input = TCP_input
-#    
-#    ## Run optimisation multiple times to ensure accuracy (as based on random data)
-#    repeats = repeats
-#    n=n
-#    alphabeta_use=alphabeta_use
-#    alphabeta_sd_use=alphabeta_sd_use
-#    d=d
-#    d_shift=d_shift
-#    d_sd=d_sd
-#    d_trend=d_trend
-#    max_d=max_d
-#    dose_of_interest=dose_of_interest
-#    
-#    ## store the fit results in this list
-#    fit_results=[]
-#
-#    #TCP, n, alphabeta_use, alphabeta_sd_use,d,d_shift,d_sd,max_d,dose_of_interest
-#    
-#    for i in range(0,repeats):
-#        n0_result = opt.minimize_scalar(calc_dif_sq,method='brent',
-#                                        args=(TCP_input,
-#                                              n,
-#                                              alphabeta_use,
-#                                              alphabeta_sd_use,
-#                                              d,
-#                                              d_shift,
-#                                              d_sd,
-#                                              d_trend,
-#                                              max_d,
-#                                              dose_of_interest))
-#        fit_results.append(n0_result.x) ## build up a list of the N0 fit results
-#        no_fit_perc_completed = 100*i/repeats  ## Display the progress
-#        print("\r" + "Fitting N0: " + str(int(no_fit_perc_completed)) + "% complete", end="")
-#        
-#    print('\r' + "Fitting N0: 100% complete")
-#    #print("Fitting N0: 100% complete")
-#
-#    ## Remove outliers from N0 predictions (based on keeping the central 50% of results
-#    trimmed = fit_results[:]
-#    while len(trimmed)>0.5*len(fit_results):
-#        trimmed.remove(max(trimmed))
-#        trimmed.remove(min(trimmed))
-#
-#    ## Calculate mean of remaining results
-#    n0_mean_fit=sum(trimmed)/len(trimmed)
-#    
-#    print("N0 mean fit: " + str(round(n0_mean_fit,2)))
-#
-#    ## Perform check calculation - not needed for actual use
-#    TCP_Calc_min = completeTCPcalc(n=n,
-#                               alphabeta_use=alphabeta_use,
-#                               alphabeta_sd_use=alphabeta_sd_use,
-#                               d=d,
-#                               d_shift=d_shift,
-#                               d_sd=d_sd,
-#                               d_trend=d_trend,
-#                               n0=n0_mean_fit, # this needs to be able to vary to allow optimisation
-#                               max_d=max_d,
-#                               dose_of_interest=dose_of_interest)
-#    print('TCP target: ' + str(TCP_input))
-#    print('TCP fit check: ' + str(round(TCP_Calc_min[10],2)))
-#    
-#    return n0_mean_fit, fit_results, trimmed
-#
-#
-## ### a/b SD
-## This parameter makes a significant difference to the N0 and the TCP values
-
-# In[7]:
-
-## N0 determination from entered TCP model parameters - DOES NOT WORK
-#def n0_determination_old(TCP,d=2,D=74,ab=3,b=0.02):
-#    """Determine the value of N0 from the input of the
-#    nominal TCP model input parameters.
-#    This enables the model to match that of clinical trials data if input."""
-#    a = b * ab #ab ratio = a/b
-#    n0 = -np.log(TCP)/np.exp(-(a*D)-(b*d*D))
-#    return n0
 
 #%%
 def n0_determination(TCP_input,
@@ -378,36 +235,6 @@ def n0_determination(TCP_input,
     print('Fitting Completed')
     
     return n0_mean_fit#, TCP_Calc_min[10]
-
-# In[8]:
-
-# tester = np.array([])
-# tester2 = np.array([])
-
-# n2=10000
-
-# mean_n = 10
-# sd_n = 2
-
-# ### mean and sd required for lognormal calc as described here: http://uk.mathworks.com/help/stats/lognstat.html?refresh=true
-# mean_l = np.log((mean_n**2)/(np.sqrt((sd_n**2)+(mean_n**2))))
-# sd_l = np.sqrt(np.log(((sd_n**2)/(mean_n**2))+1))
-
-# for i in range(0,n2):
-#     tester = np.append(tester,[np.random.normal(mean_n,sd_n)])
-#     tester2 = np.append(tester2,[np.random.lognormal(mean_l,sd_l)])
-
-# #tester = np.reshape(tester,(n2,12))
-# #tester2 = np.reshape(tester2,(n2,2))
-# #print(tester)
-
-# print(sd_l)
-
-# #plt.hist(tester, bins=30, color='red', alpha=0.5, label='norm')
-# #plt.hist(tester2, bins=30, color='blue', alpha=0.5, label='lognorm')
-# #plt.legend()
-# ##print(tester2)
-# #plt.show()
 
 
 # In[9]:
@@ -535,33 +362,6 @@ def doses_array(n, n_frac, d, d_shift, d_sd, d_trend=0):
     #print(doses)
     return doses_np_trend
     
-
-# In[16]:
-
-# ## Example calc and plot of doses with trend.
-
-# x = doses_array(10,100,2,-2,0.5,3/365)
-# print(x[1])
-# for i in range(9):
-#     plt.plot(x[i], alpha=0.5)
-    
-# plt.plot(x[1], linewidth=3, c='black')
-# plt.show()
-
-
-# In[17]:
-
-## Calculate Doses for all patients and all fractions and put in an array
-
-#def doses_array_orig(n, n_frac, d, d_shift, d_sd):
-#    doses = []
-#    for i in range(0,int(n*n_frac)):
-#        doses.append(fracdose(dose = d, shift=d_shift, sd=d_sd))
-#    doses_np = np.array(doses)
-#    doses_np = np.reshape(doses_np,(n,n_frac))
-#    #print(doses)
-#    return doses_np
-
 
 # In[18]:
 
@@ -708,45 +508,6 @@ def completeTCPcalc(n,
     return n,alphabeta_use,alphabeta_sd_use,d,d_shift,d_sd,n0_use,max_d,dose_of_interest,frac_of_interest,TCP_cure_percent, TCPs, TCP_pop, nom_doses, d_trend
 
 
-# In[22]:
-
-## Plot of individual and population TCPs as a function for ease
-
-def TCP_plot(no_ind_plots, label):
-    #no_ind_plots = 50
-
-    ## individual plots cannot be more than total patients
-    if(no_ind_plots>n):
-        no_ind_plots=n
-
-    ## want to select the individual plots randomly from those calcualted...
-    ind_plots = np.random.choice(len(TCPs),no_ind_plots, replace=False)
-
-    ## individuals (specified number of plots chosen)
-    for i in ind_plots:
-        plt.plot(nom_doses,TCPs[i], color = 'grey', alpha = 0.5)
-    ## population
-    plt.plot(nom_doses,TCP_pop, color='black', linewidth='2', alpha=0.5)
-    plt.plot(nom_doses,TCP_pop, marker = 'o', ls='none', label=label)
-
-    ## plot formatting
-    plt.xlim(0,max(nom_doses))
-    plt.ylim(0,1.0)
-    plt.xlabel('Dose (Gy)')
-    plt.ylabel('TCP')
-    plt.title('TCPs')
-    #plt.legend(loc = 'best', fontsize = 'medium', framealpha = 1)
-    plt.axvline(d_interest, color = 'black', ls='--',)
-    plt.axhline(TCP_pop[frac_interest-1], color='black', ls='--')
-
-    ## add labels with TCP at dose of interest
-    text_string = ('Pop. TCP = ' + str(round(TCP_cure_at_d_interest,2)) + ' % at ' + str(d_interest) + 'Gy')
-    plt.text(5,0.4,text_string, backgroundcolor='white')
-    plt.legend(loc = 'lower left',numpoints=1)
-
-    plt.show()
-
-
 # In[23]:
 
 ## Return sum of squares [calc = calculation of TCP from TCP calc, ref = TCP_input]
@@ -754,150 +515,6 @@ def sq_dif(calc, ref):
     sq_dif = (calc - ref)**2
     return sq_dif
 
-
-# In[24]:
-
-# ## Determine N0 by minimising difference betwen calculated TCP and input TCP.
-
-# TCP_input = 80 # TCP in percent
-
-# ### Need to add something to ensure the minimum is always found, but without always having a huge list of possible values.
-# ## Could also start with a coarse list and refine after one sweep?
-# j=1
-# start = 0
-# increment=10
-
-# any_pos = False
-# any_neg = False
-# stop = False
-
-# while (stop == False and j<100):
-#     TCP_list = []
-       
-#     a_list = list(range(start,(j*increment)))
-#     print(a_list)
-    
-#     for i in a_list:
-#         TCP_Calc = completeTCPcalc(n=100,
-#                                alphabeta_use=3,
-#                                alphabeta_sd_use=1,
-#                                d=2,
-#                                d_shift=0,
-#                                d_sd=1,
-#                                d_trend=0,
-#                                n0=i, # this needs to be able to vary to allow optimisation
-#                                max_d=100,
-#                                dose_of_interest=74)
-#         TCP_list.append(TCP_Calc[10])
-
-#     dif_list = np.array(TCP_list)-TCP_input
-#     dif_list_abs = abs(np.array(TCP_list)-TCP_input)
-#     print("test")
-#     print(dif_list)
-
-#     any_pos = np.any(dif_list >0)
-#     any_neg = np.any(dif_list <0)
-    
-#     if (any_pos == True and any_neg == True):
-#         stop = True
-#         #break
-    
-#     j = j+1 # increment list to lookup
-#     start = start + increment
-    
-# print("N0 fitted")
-# ## can use the following to check if the minimum has been found by cehckign for + and - differences.
-
-
-# #dif_list[:] = [x-TCP_input for x in TCP_list]
-
-# #a[:] = [x - 13 for x in a]
-    
-# ### Now want to 
-
-# #tester = sp.optimize.minimize(sq_dif(TCP_Calc(x),TCP_input))
-# print(min(dif_list_abs)) # minimum difference found.
-# print(np.argmin(dif_list_abs))# index of minimum found
-# print("N0: " + str(a_list[np.argmin(dif_list_abs)]))
-
-# ## So n0 = a_list[np.argmin(dif_list)]
-
-# TCP_Calc_min = completeTCPcalc(n=1000,
-#                            alphabeta_use=3,
-#                            alphabeta_sd_use=1,
-#                            d=2,
-#                            d_shift=0,
-#                            d_sd=1,
-#                            d_trend=0,
-#                            n0=a_list[np.argmin(dif_list_abs)], # this needs to be able to vary to allow optimisation
-#                            max_d=100,
-#                            dose_of_interest=74)
-# print(TCP_Calc_min[10])
-
-
-# In[25]:
-
-# n0_mean_fit, fit_results, trimmed = n0_determination(TCP_input=80,
-#                                                      repeats=20,
-#                                                      n=1000,
-#                                                      alphabeta_use=3,
-#                                                      alphabeta_sd_use=1,
-#                                                      d=2,
-#                                                      d_shift=0,
-#                                                      d_sd=1,
-#                                                      d_trend=0,
-#                                                      max_d=100,
-#                                                      dose_of_interest=74)
-
-
-# In[26]:
-
-# ## Plot of N0 fit results
-# plt.hist(fit_results)
-# plt.hist(trimmed)
-# plt.show()
-
-
-# ### Calculate and Plot results of single set of parameters
-
-# In[27]:
-
-# ### Individual calculation of TCP at a set value of dose
-
-# n_rpts = 1
-
-# print("Enter Dose Shift (%)")
-# applied_shift = float(input())
-
-# text_string = ("Shift: " + str(applied_shift) + "%")
-
-# for i in range(0,n_rpts):
-#     t = completeTCPcalc(n = 1000,
-#                     alphabeta_use = 3,
-#                     alphabeta_sd_use = 2,
-#                     d = 2,
-#                     d_shift = applied_shift, # +1.6,-2.1% from OP data
-#                     d_sd = 0,
-#                     d_trend=0,
-#                     n0 = n0_mean_fit,
-#                     max_d = 100,
-#                     dose_of_interest = 74)
-
-#     n=t[0]
-#     TCP_pop = t[-2]
-#     TCPs = t[-3]
-#     nom_doses = t[-1]
-#     d_interest = t[8]
-#     frac_interest = t[9]
-#     TCP_cure_at_d_interest = t[10]
-
-
-
-#     #print(TCP_pop)
-#     TCP_plot(100,text_string)
-
-
-# ### User iterator to build list to vary multiple parameters in one go
 
 # In[28]:
 
@@ -911,6 +528,8 @@ def round_n(x,n):
 ######***** Change this to calcualte a given percentage variation in dose? or allow both.....?
 
 ## This allows simple building of a tuple containing all possible combinations of values
+
+## should probably not end up in the main TCP-NTCP file, but made by the user if required.
 
 def dose_iter(dose_var=0.5,
              dose_max=3,
@@ -978,22 +597,6 @@ def dose_iter(dose_var=0.5,
 #print(num_its)
 #print(n0_mean_fit)
 #print(n0_vals)
-
-
-# In[30]:
-
-# abc1 = dose_iter(dose_var=0.5,
-#              dose_max=3,
-#              ab_var=0.5,
-#              ab_max=4,
-#              ab_min=2,
-#              di_var=1,
-#              di_max=80,
-#              di_min=64,
-#              n0_var=10,
-#              n0_range=5)
-
-# print(abc1[1])
 
 
 # In[38]:
@@ -1214,40 +817,3 @@ def TCP_full(k=10,
 #t3 = (t2-t1).total_seconds()
 
 #print(t3)
-
-
-# In[39]:
-
-## This runs the entire analysis in one go.
-#all_test = TCP_full(k=5,
-#                    TCP_input=80,
-#                    repeats=5,
-#                    n=100,
-#                    alphabeta_use=3,
-#                    alphabeta_sd_use=0.5,
-#                    d=2,
-#                    d_shift=0,
-#                    d_sd=0.8,
-#                    d_trend=0,
-#                    max_d=100,
-#                    dose_of_interest=74,
-#                    save_name="Results1-Trend=0")
-
-
-# ### Import created results to examine
-
-# In[42]:
-
-#TCP_data = pd.read_csv(os.getcwd()+"\\"+all_test[0]) # read in file saved after TCP simulation.
-
-
-# In[43]:
-
-#print(all_test[0])
-#TCP_data.describe()
-
-
-# In[ ]:
-
-
-
