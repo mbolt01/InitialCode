@@ -8,11 +8,61 @@ Created on Thu May 26 16:12:28 2016
 #%%
 
 #from TCP import *
-import TCP
+import TCP_NTCP
 import matplotlib.pyplot as plt
 import importlib
 import sys
-importlib.reload(TCP)
+importlib.reload(TCP_NTCP)
+import numpy as np
+
+
+#%%
+
+## specify trend in percent per day
+#trends = [-2,0,2]
+
+results = []
+
+#all_vars =list(range(3)) # 366 gives 1% change per day which is crazy!
+all_vars = list(np.linspace(0,366.1,366.1*10,endpoint=False))
+all_vars = [3]
+print(all_vars)
+
+#var = 50
+for i in all_vars:
+    var = i
+## unindent the below to just use a single value
+    year_perc = [var,0,-var]
+    trends=(np.array(year_perc)/365)#.round(2)
+    #print(trends)
+    
+    results.append(var)
+    
+    d_nom = 2
+    print(1.0*var)
+    for trend in trends:
+        TCP_results_trend = TCP_NTCP.completeTCPcalc(n=1000,
+                                      alphabeta_use=3,
+                                      alphabeta_sd_use=0.5,
+                                      d=d_nom,
+                                      d_shift=0, # no shift as start each treatment as if perfect
+                                      d_sd=0.5,
+                                      d_trend=trend, # vary the trend value
+                                      max_d=100,
+                                      dose_of_interest=74,
+                                      dose_input = None,
+                                      TCP_input = None,
+                                      d_list = None,
+                                      n0 = 175,
+                                      weights_input = None)
+        #print(TCP_results_trend[10])
+        results.append(TCP_results_trend[10])
+                                  
+    plt.plot(TCP_results_trend[13],TCP_results_trend[12], label=trend)
+plt.legend(title='Daily variation (%)', loc='upper left')
+plt.title('Variation over year = ' + str(var) + '%')
+
+
 
 
 #%%
@@ -55,9 +105,9 @@ if (type(dose_pts) is not list) or (type(tcp_pts) is not list):
     #print('dose and tcp points must be provided as a list')
     sys.exit('dose and tcp points must be provided as a list')
 
-d_use = [None,d_list_type] # for plotting standard and list of doses on same plot
+d_use = [None]#,d_list_type] # for plotting standard and list of doses on same plot
 
-n0_param = None
+n0_param = 170#None
 
 ## plott he provided dose points if provided
 if (dose_pts is not None) and (tcp_pts is not None):
@@ -66,7 +116,7 @@ if (dose_pts is not None) and (tcp_pts is not None):
 
 for j in d_use:
 
-    TCP_results1 = TCP.completeTCPcalc(n=1000,
+    TCP_results1 = TCP_NTCP.completeTCPcalc(n=5000,
                                   alphabeta_use=3,
                                   alphabeta_sd_use=0.5,
                                   d=d_nom,
@@ -109,11 +159,11 @@ for j in d_use:
 
 
 ## plot some of the individual patient TCPs
-plt.twiny()
-plt.xlabel('Fraction Number')
-for i in range(50):
-    plt.plot(nom_doses/d_nom,TCPs[i], color = 'grey', alpha = 0.2)
-    
+#plt.twiny()
+#plt.xlabel('Fraction Number')
+#for i in range(50):
+#    plt.plot(nom_doses/d_nom,TCPs[i], color = 'grey', alpha = 0.2)
+#    
 plt.title('Demo showing missed fractions and hyperfractionation', y=1.2)
 
 ## save plots in multiple formats
@@ -292,7 +342,7 @@ print("Started....")
 #CHHIP: node negative T1b-T3a localised PCa
 # with risk of seminal vesical involvement ≤30%
 
-all_test = TCP.TCP_full(k=2,
+all_test = TCP_NTCP.TCP_full(k=2,
                     TCP_input=88.3,
                     repeats=5,
                     n=500,
@@ -329,7 +379,7 @@ TCP_data.describe()
  text_string = ("Shift: " + str(applied_shift) + "%")
 
  for i in range(0,n_rpts):
-     t = TCP.completeTCPcalc(n = 1000,
+     t = TCP_NTCP.completeTCPcalc(n = 1000,
                      alphabeta_use = 3,
                      alphabeta_sd_use = 2,
                      d = 2,
@@ -352,4 +402,4 @@ TCP_data.describe()
 
 
      #print(TCP_pop)
-     TCP.TCP_plot(100,text_string)
+     TCP_NTCP.TCP_plot(100,text_string)
