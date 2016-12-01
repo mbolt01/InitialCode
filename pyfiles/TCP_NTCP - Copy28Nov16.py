@@ -10,7 +10,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy as sp
-import scipy.optimize as opt
+import scipy.optimize as optcomp
 import pandas as pd
 
 #%matplotlib qt
@@ -85,17 +85,12 @@ def alphacalc_normal(alphabeta, sd):
 
 ### Alpha beta calculator - log normal dist
 
-def alphacalc_lognormal(alphabeta, sd_perc):
+def alphacalc_lognormal(alphabeta, sd):
     """Return alphabetanew and alpha from normal distribution as specified by sd.
     Default is beta = 0.03
-    'alphabeta' is the alphabeta ratio mean
-    sd supplied as percentage
-    """
+    'alphabeta' is the alphabeta ratio"""
     
     beta = 0.02 # fixed beta in function
-    
-    ## convert sd from percentage to absolute
-    sd = alphabeta*sd_perc/100
     
     alphabeta_lognormal = np.log((alphabeta**2)/(np.sqrt((sd**2)+(alphabeta**2))))
     sd_lognormal = np.sqrt(np.log(((sd**2)/(alphabeta**2))+1))
@@ -112,6 +107,7 @@ def alphacalc_lognormal(alphabeta, sd_perc):
 ## alpha/beta can be calced form the returned alpha and beta values
 
 # ###N0 varies depending on the a/b Std Dev!!!
+
 
 #%%
 
@@ -144,7 +140,7 @@ def calc_dif_sq(x,TCP, n, alphabeta_use, alphabeta_sd_use,d,d_shift,d_sd,d_trend
                                    dose_of_interest=dose_input[i],
                                    dose_input=dose_input[i],
                                    TCP_input=TCP_input[i])
-        TCP_result = TCP_calc_all['TCP_cure_percent'] ## Get only the result of interest (TCP at d_int is in posn. 10 in the returned tuple)
+        TCP_result = TCP_calc_all[10] ## Get only the result of interest (TCP at d_int is in posn. 10 in the returned tuple)
         #print(weights[i]/sum(weights))        
         TCP_Dif_sq = (weights[i]/sum(weights))*((TCP_in[i] - TCP_result)**2) ## difference in squares to minimise
         TCP_Dif_sq_sum = TCP_Dif_sq_sum + TCP_Dif_sq
@@ -194,7 +190,7 @@ def n0_determination(TCP_input,
         print('Number of repeats for fitting N0 has been set to the minimum reccomended value of ' + str(repeats_min))
     else:
         repeats = repeats
-    n=100 # set value of n for reliable fitting # use 3000 for final results
+    n=500 # set value of n for reliable fitting # use 3000 for final results
     n0=n0
     alphabeta_use=alphabeta_use
     alphabeta_sd_use=alphabeta_sd_use
@@ -216,6 +212,7 @@ def n0_determination(TCP_input,
 ### This could probably be made to return the value if multiple TCP/Dose points are passed to it?
         
     print('Fitting N0 value')
+    print('')
     
     for i in range(0,repeats):
         print('\r' + 'Fitting N0: Stage ' + str(i+1) + ' of ' + str(repeats), end="")
@@ -342,7 +339,7 @@ def create_alpha_beta_array(n, alphabeta_use, alphabeta_sd_use):
 
     for p in range(0,n):
         #alpha_and_beta = np.append(alpha_and_beta,[alphacalc_normal(alphabeta = alphabeta_use, sd=alphabeta_sd_use)])
-        alpha_and_beta.append([alphacalc_lognormal(alphabeta = alphabeta_use, sd_perc=alphabeta_sd_use)])
+        alpha_and_beta.append([alphacalc_lognormal(alphabeta = alphabeta_use, sd=alphabeta_sd_use)])
 
     ## reshape to get a row per patient
     alpha_and_beta_np = np.array(alpha_and_beta)
@@ -476,9 +473,9 @@ def completeTCPcalc(n,
     
     ## determine N0 value to use if none provided
     if (n0 is None) and (TCP_input is not None) and (dose_input is not None):
-        print('N0 not provided - will calculate N0')
+        print('N0 not provided')
         #print(weights_input)
-        n0_use = n0_determination([100*i for i in TCP_input],
+        n0_use = n0_determination(TCP_input,
                                   n,
                                   n0,
                                   alphabeta_use,
@@ -491,10 +488,8 @@ def completeTCPcalc(n,
                                   dose_of_interest,
                                   dose_input,
                                   weights_input)
-        tpc_fit=True
     else:
         n0_use = n0
-        tpc_fit=False
 
     ## Calculate TCP for all individual patients and fractions
     TCPs = TCPcalc(sf = SF_cum, n0=n0_use)
@@ -519,29 +514,7 @@ def completeTCPcalc(n,
     #print(TCP_cure_percent)
     #print(TCP_pop)
     
-    return {'n':n,
-            'alphabeta_use':alphabeta_use,
-            'alphabeta_sd_use':alphabeta_sd_use,
-            'd':d,
-            'd_shift':d_shift,
-            'd_sd':d_sd,
-            'n0_use':n0_use,
-            'max_d':max_d,
-            'dose_of_interest':dose_of_interest,
-            'frac_of_interest':frac_of_interest,
-            'TCP_cure_percent':TCP_cure_percent,
-            'TCPs':TCPs,
-            'TCP_pop':TCP_pop,
-            'nom_doses':nom_doses,
-            'd_trend':d_trend,
-            'doses':doses,
-            'dose_input':dose_input,
-            'TCP_input':TCP_input,
-            'd_list':d_list,
-            'n0':n0,
-            'weights_input':weights_input,
-            'tcp_fit':tpc_fit,
-            }
+    return n,alphabeta_use,alphabeta_sd_use,d,d_shift,d_sd,n0_use,max_d,dose_of_interest,frac_of_interest,TCP_cure_percent, TCPs, TCP_pop, nom_doses, d_trend
 
 
 # In[23]:
@@ -853,336 +826,3 @@ def TCP_full(k=10,
 #t3 = (t2-t1).total_seconds()
 
 #print(t3)
-
-#%%
-
-######## NTCP bits ############
-
-
-def td50_calc(td50_1,v,n):
-    ## calcualte TD50(V) which takes into account the volume effect
-    return td50_1/(v**n)
-
-def u_calc(d,td50,m):
-    ## calculation of the u value which is the limit for the NTCP integration
-    return (d-td50)/(m*td50)
-    
-def ntcp_integrand(x):
-    ## This is the part of the NTCP which is within the integral
-    return sp.exp(-0.5*x**2)
-    
-def ntcp_calc(d,td50_1,v,m,n):
-    """
-    NTCP calculation based on LKB model.
-    Parameters required are:
-    d = total dose
-    td50_1 = dose at which 50% of patients see effect for partial volume
-    v = partial volume
-    m = describes SD of TD50 SD~m.TD50(V). Inversly related to curve steepness.
-    n = describes steepness of curve. n = 0 indicates a serial structure.
-    """
-    
-    ## calcualte TD50(V)
-    td50 = td50_calc(td50_1,v,n)
-    #print(td50)
-    
-    ## calculate u for the integration limit
-    u = u_calc(d,td50,m)
-    #print(u)
-
-    ## calculate NTCP value from input parameters
-    ntcp = (1/(sp.sqrt(2*sp.pi)))*sp.integrate.quad(ntcp_integrand,-sp.inf,u)[0]
-    #print(ntcp)
-    
-    return ntcp
-
-def ntcp_fit_calc(dose_data, td50_1, v, m, n):
-    ## calculate the NTCP at supplied dose points
-    ntcp_fitted = []
-    for dose in dose_data:
-        ntcp_fitted.append(ntcp_calc(dose, td50_1, v, m, n))
-    return ntcp_fitted
-    
-def ntcp_curve_calc(dose_range,td50_1, v, m, n):
-    ## calcualte the ntcp curve up to a maximum dose
-    ntcp_curve = []
-    step = 0.1
-    doses = np.arange(0,dose_range+step,step)
-    for dose in doses:
-        #doses.append(dose)
-        ntcp_curve.append(ntcp_calc(dose, td50_1, v, m, n))
-    return doses,ntcp_curve
-    
-def ntcp_patient_calc(cum_doses, td50_1, v, m, n):
-    ## calcualte the ntcp curve with a set of given cumulative doses
-    ## could adapt to create cumulative dose from the supplied doses (slower?)
-    patient_ntcp_curve = []
-    for cum_dose in cum_doses:
-        patient_ntcp_curve.append(ntcp_calc(cum_dose, td50_1, v, m, n))
-    return patient_ntcp_curve
-    
-##  fit the TD50_1,m and n parameters.
-
-## dif in squares to minimise
-def sum_square_difs(vals):
-    ## must provide a list of tuples contianing mathcing pairs of (calc,ref)
-    ## can combine lists like vals = list(zip(calcs,refs))
-    ## this will be used in determining the differnce between fitted curve
-    ## and data points
-    
-    return sum((vals[i][0] - vals[i][1])**2 for i in range(len(vals)))
-    
-## produce the effective volume calculation which might be useful.
-
-##veff = sum(Di/D)^1/n*deltaVi
-
-def veff_calc(cdvh_data,n):
-    """
-    Must provide:
-    cdvh_data = cdvh as a list of tuples (dose,volume (%))
-    n = describes parallel (n=1) or serial structures (n=0)
-    
-    Calculates on its way to veff:
-    di = dose for each bin in differential dvh
-    dmax = max dose to organ
-    dvi = volume in specific dose bin i
-    
-    Returns:
-    ddvh = tuple containing ddvh (dose, volume (%))
-    veff = effective volume (%)
-    """
-    ## extract dose (di) and cdvh from input
-    ## n cant be zero or calc fails due to divide by zero
-    if n==0:
-        n=0.0001
-    di, cdvh = zip(*cdvh_data)
-    
-    ## calc ddvh
-    ddvh = -np.gradient(cdvh) # note the negative sign
-    
-    ## find max dose = find where cdvh is first equal to 0
-    dmax = di[cdvh.index(0)]
-
-    ## dvi is equal to the ddvh at the point i. use to calc the bin values
-    veff = sum([(ddvh[i]*((di[i]/dmax)**(1/n))) for i in range(len(di))])
-   
-    ## combine the dose and calced ddvh into single list of tuples
-    ddvh_data = list(zip(di,ddvh))
-    
-    return veff,ddvh_data ## veff is a percentage value
-
-
-def range_list(m, perc=None, dif=None,n=None, spacing=None):
-    """
-    A function to create a list of values of length 2n+1, or set spacing.
-    n is the number of values either side of the mean to return
-    The values are centred around the mean, m and 
-    have a range extending from  +/- perc of m.
-    values returned will not exceed the m+/-perc specified
-    """
-    ## ensure required parameters are passed
-    
-    if perc==None and dif==None:
-        raise Exception('Need to specify a range with perc or dif')    
-    if n==None and spacing==None:
-        raise Exception('Need to specify number or spacing of output')
-    if n!=None and spacing!=None:
-        raise Exception('Ambiguous input as both n and spacing were supplied')
-        
-    ## convert percentage dif to absolute range
-    if perc == None:
-        abs_dif = dif
-    if dif == None:
-        abs_dif = m/100*perc
-    #print(abs_dif)
-            
-    if spacing == None:
-        if n < 1:
-            if n == 0:
-                results = [m]
-            else:
-                raise Exception('need at least 1 value either side of mean for n')
-        else:
-            n = np.floor(n) # wnat whole numbers either side
-            results = np.linspace(m-abs_dif,m+abs_dif,2*n+1)
-    
-    if n==None:
-        if spacing==0:
-            results = [m]
-        else:
-            vals = []
-            val = m
-            ## add lower vlaues
-            while val >= m-abs_dif:
-                vals.append(val)
-                val = val - spacing
-                
-            val = (m+spacing)
-            ## add upper values
-            while val <= m+abs_dif:
-                vals.append(val)
-                val = val + spacing
-    
-            results = sorted(vals)
-    
-    return list(results)
-    
-def closest_val(mylist,match):
-    """
-    Returns (index,value) of closest match in list of values
-    Useful for getting values for a specified dose.
-    i.e. look up the index of the closest dose to that supplied
-    """
-    return min(enumerate(mylist), key=lambda x:abs(x[1]-match))
-
-#%%
-
-def ntcp_data_fit(dose_data,ntcp_data,initial_params,v=1.0):
-    """
-    fucntion to fit the NTCP model to supplied data and return the parameters.
-    At somepoint in the process, if parameter values are not supplied
-    this function will need calling to detemien them.
-    i.e. if data is supplied, then fit the values, if not then use supplied vals.
-    Funciton should only return fitted params, not do any plotting etc.
-    """
-    
-    #plt.close() # close any open plots
-    ## some example data to fit to and plot
-    dose_data = dose_data#[55,60, 62, 67, 72, 65]
-    ntcp_data = ntcp_data#[0.1,0.15,0.1,0.2,0.3, 0.19]
-    
-    ## specify some initial starting values
-    initial_params = initial_params # supply inital params as a list to the function
-    ## can supply all at once using *initial_params (must be in correct order)
-        
-    ## calculate NTCP for supplied data
-    ntcp_fit = ntcp_fit_calc(dose_data,*initial_params)
-    
-    ## calc dif of squares (for use in optimisation)
-    ntcp_dif_squares = sum_square_difs(list(zip(ntcp_data,ntcp_fit)))
-    #print(ntcp_dif_squares)
-    
-    ## fit the parameters TD50_1, m, n using scipy
-    ## note v_would be specified on a patient by patient basis in reality?
-    ## but for my purposes could use fixed values to see the effect of changes?
-    v_val_upper = v#1.0 # can set v in the function
-    v_val_lower = v_val_upper*0.999
-    
-    set_bounds = ([0,v_val_lower,0,0],
-                  [100,v_val_upper,1,1])
-    
-    #methods = ['dogbox','trf']
-    ## could hold parameters fixed by specifying a very small range?
-    
-    #all_results_list = []
-    
-    #for i in range(len(methods)):
-        #print(methods[i])
-    popt,pcov = sp.optimize.curve_fit(f = ntcp_fit_calc,
-                                xdata = dose_data,
-                                ydata = ntcp_data,
-                                p0 = initial_params,
-                                bounds = set_bounds,
-                                method='trf') #method : {‘lm’, ‘trf’, ‘dogbox’}
-    
-    perr = np.sqrt(np.diag(pcov))
-    
-    ## calculate complete NTCP curve (using fitted params)
-    #fitted_params = [param*1 for param in initial_params]
-    fitted_params = [param for param in popt]
-    fitted_params[1]=1
-
-    return popt # return the fitted params
-
-#%%
-
-def complete_NTCP_calc(d_data=None,
-                       ntcp_data=None,
-                       frac_doses = None,
-                       initial_params_ntcp=None,
-                       max_dose=100,
-                       ntcp_params=None,
-                       fit_vals = False
-                       ):
-    
-    if initial_params_ntcp==None:
-        ## initial params (use these defaults, but allow list to be suppled)
-        intial_ntcp_td50_1 = 70
-        intial_ntcp_v = 1.0
-        intial_ntcp_m = 0.1
-        intial_ntcp_n = 0.1
-        #[td50,v,m,n)]
-        initial_params_ntcp = [intial_ntcp_td50_1,intial_ntcp_v,intial_ntcp_m,intial_ntcp_n]
-        
-    ## optimise fitting parameters [td50,v,m,n] is returned
-    if ntcp_params==None or fit_vals==True:
-        print("Fitting NTCP data")
-        pop_fit = ntcp_data_fit(dose_data = d_data,
-                                ntcp_data = ntcp_data,
-                                initial_params = initial_params_ntcp)
-        ntcp_fit=True
-    else:
-        pop_fit=[ntcp_params['td50_1'][0],
-                 ntcp_params['v'][0],
-                 ntcp_params['m'][0],
-                 ntcp_params['n'][0]
-                 ]
-        ntcp_fit = False       
-
-    fit_x,fit_y = ntcp_curve_calc(max_dose,*pop_fit)
-    
-    ## calc cumulative dose for use in calcualting individual patient NTCP
-    ## the input is a list of doses for each fraction.
-    
-    if frac_doses is not None:
-        cum_doses = np.cumsum(frac_doses,axis=1)
-        
-        ## calculate a set of NTCP parameters for each patient
-        ## variation is supplied in the ntcp_params[1] values of the dict
-        
-        ## 1 set the sd vals to use
-        #td50_1_sd = ntcp_params['td50_1'][1]
-        #v_sd = ntcp_params['v'][1]
-        #m_sd = ntcp_params['m'][1]
-        #n_sd = ntcp_params['n'][1]
-        
-        ## if SD is set to zero then cannot get from normal distribution, so set explicitely
-        print("Calculating Individual Patient NTCP curves")
-        if ntcp_params['td50_1'][1] == 0:
-            td50_1_use = np.full(len(cum_doses),pop_fit[0])
-        else:
-            td50_1_use = np.random.normal(loc = pop_fit[0], scale = (pop_fit[0]*ntcp_params['td50_1'][1]/100),size=len(cum_doses))
-        
-        if ntcp_params['v'][1] == 0:
-            v_use = np.full(len(cum_doses),pop_fit[1])
-        else:
-            v_use = np.random.normal(loc = pop_fit[1], scale = (pop_fit[1]*ntcp_params['v'][1]/100),size=len(cum_doses))
-            
-        if ntcp_params['m'][1] == 0:
-            m_use = np.full(len(cum_doses),pop_fit[2])
-        else:
-            m_use = np.random.normal(loc = pop_fit[2], scale = (pop_fit[2]*ntcp_params['m'][1]/100),size=len(cum_doses))
-            
-        if ntcp_params['n'][1] == 0:
-            n_use = np.full(len(cum_doses),pop_fit[3])
-        else:
-            n_use = np.random.normal(loc = pop_fit[3], scale = (pop_fit[3]*ntcp_params['n'][1]/100),size=len(cum_doses))
-        
-        ## calcualte the NTCP curve for each patient based on their cumulative doses
-        patient_ntcps = []
-        for i in range(len(cum_doses)):
-            patient_ntcps.append(ntcp_patient_calc(cum_doses[i], td50_1_use[i], v_use[i], m_use[i], n_use[i]))
-        patient_ntcps = np.array(patient_ntcps)
-            
-    return {'pop_fit': pop_fit,
-            'fit_x':fit_x,
-            'fit_y':fit_y,
-            'd_data':d_data,
-            'ntcp_data':ntcp_data,
-            'cum_doses':cum_doses,
-            'patient_ntcps':patient_ntcps,
-            'ntcp_fit':ntcp_fit,
-            'td50_1_use':td50_1_use,
-            }
-    
-    
