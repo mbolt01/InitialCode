@@ -10,10 +10,11 @@ Created on Thu May 26 16:12:28 2016
 #from TCP import *
 import TCP_NTCP
 import matplotlib.pyplot as plt
-import importlib
-import sys
-importlib.reload(TCP_NTCP)
 import numpy as np
+import sys
+#%%
+import importlib
+importlib.reload(TCP_NTCP)
 
 
 #%%

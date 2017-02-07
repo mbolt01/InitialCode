@@ -11,6 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy as sp
 import scipy.optimize as opt
+from scipy import stats
 import pandas as pd
 
 #%matplotlib qt
@@ -242,7 +243,7 @@ def n0_determination(TCP_input,
     fit_results_trim = fit_results[num_outliers:-num_outliers]
 
     n0_mean_fit = sum(fit_results_trim)/len(fit_results_trim)
-    #print(n0_mean_fit)
+    print('N0 fit:',n0_mean_fit)
     print('')
     print('Fitting Completed')
     
@@ -1052,7 +1053,7 @@ def norm_trunc(lim_low,lim_high,mean,std,size):
 
 #%%
 
-def ntcp_data_fit(dose_data,ntcp_data,initial_params,v=1.0):
+def ntcp_data_fit(dose_data,ntcp_data,initial_params,v=None):
     """
     fucntion to fit the NTCP model to supplied data and return the parameters.
     At somepoint in the process, if parameter values are not supplied
@@ -1068,8 +1069,8 @@ def ntcp_data_fit(dose_data,ntcp_data,initial_params,v=1.0):
     
     ## specify some initial starting values
     initial_params = initial_params # supply inital params as a list to the function
-    ## can supply all at once using *initial_params (must be in correct order)
-        
+    ## can supply all at once using *initial_params (must be in correct order)    
+    
     ## calculate NTCP for supplied data
     ntcp_fit = ntcp_fit_calc(dose_data,*initial_params)
     
@@ -1080,11 +1081,19 @@ def ntcp_data_fit(dose_data,ntcp_data,initial_params,v=1.0):
     ## fit the parameters TD50_1, m, n using scipy
     ## note v_would be specified on a patient by patient basis in reality?
     ## but for my purposes could use fixed values to see the effect of changes?
-    v_val_upper = v#1.0 # can set v in the function
-    v_val_lower = v_val_upper*0.999
     
+    ## at this point want to set bounds on all of the parameters which are provided
+    
+    if v == None: # can fix v to a particular value if required, else it is fitted.
+        v_val_upper = 1.0
+        v_val_lower = 0.0
+    else:
+        v_val_upper = v*1.001
+        v_val_lower = v*0.999
+
     set_bounds = ([0,v_val_lower,0,0],
-                  [100,v_val_upper,1,1])
+                  [200,v_val_upper,1,1])
+        
     #[td50,v,m,n)]
     
     #methods = ['dogbox','trf']
@@ -1119,32 +1128,43 @@ def complete_NTCP_calc(d_data=None,
                        initial_params_ntcp=None,
                        max_dose=100,
                        ntcp_params=None,
-                       fit_vals = False
+                       fit_vals = True
                        ):
     
-    if initial_params_ntcp==None:
+    if initial_params_ntcp==None: ## 
         ## initial params (use these defaults, but allow list to be suppled)
         intial_ntcp_td50_1 = 70
-        intial_ntcp_v = 1.0
+        intial_ntcp_v = 0.5
         intial_ntcp_m = 0.1
         intial_ntcp_n = 0.1
         #[td50,v,m,n)]
         initial_params_ntcp = [intial_ntcp_td50_1,intial_ntcp_v,intial_ntcp_m,intial_ntcp_n]
         
     ## optimise fitting parameters [td50,v,m,n] is returned
-    if ntcp_params==None or fit_vals==True:
+    if ntcp_params==None and fit_vals==True: ## only do complete fitting if no params supplied.
         print("Fitting NTCP data")
         pop_fit = ntcp_data_fit(dose_data = d_data,
                                 ntcp_data = ntcp_data,
                                 initial_params = initial_params_ntcp)
         ntcp_fit=True
+    elif ntcp_params != None and fit_vals == True: ## do fitting while holding some parameters fixed (narrow bounds)
+        print("Fit some params...")
+        
+        pop_fit = ntcp_data_fit(dose_data = d_data,
+                                ntcp_data = ntcp_data,
+                                initial_params = initial_params_ntcp)
+        
+        #pop_fit=[50,0.5,1,1]
+        ntcp_fit = True
+        
     else:
         pop_fit=[ntcp_params['td50_1'][0],
                  ntcp_params['v'][0],
                  ntcp_params['m'][0],
                  ntcp_params['n'][0]
                  ]
-        ntcp_fit = False       
+        ntcp_fit = False
+    
     perc_scale = irrad_perc/100
     
     ## calculate population NTCP curve    

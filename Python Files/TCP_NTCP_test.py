@@ -38,18 +38,18 @@ def TCP_NTCP_calc_plot(d):
     
     if TCP_calc == True:
         TCP_results = TCP_NTCP.completeTCPcalc(n=100,
-                                      alphabeta_use=3,
+                                      alphabeta_use=2,
                                       alphabeta_sd_use=5,## supply as percent
                                       d=2,
                                       d_shift=d,
-                                      d_sd=1,
+                                      d_sd=5,
                                       d_trend=0, # vary the trend value
                                       max_d=100,
                                       dose_of_interest=74,
-                                      dose_input = [74],
-                                      TCP_input = [0.8],
+                                      dose_input = [64,74],
+                                      TCP_input = [0.6,0.71],
                                       d_list = None,
-                                      #n0 = 200,
+                                      #n0 = 96,
                                       weights_input = None)
         plt.plot(TCP_results['nom_doses'],TCP_results['TCP_pop'],
                  color='darkgreen',lw=1,alpha=1,zorder=10)
@@ -63,17 +63,17 @@ def TCP_NTCP_calc_plot(d):
     ## then use within the NTCP calc.
     
     if NTCP_calc == True:
-        NTCP_results = TCP_NTCP.complete_NTCP_calc(d_data=[45,70, 62, 67, 78, 65],
-                                                   ntcp_data=[0.1,0.15,0.1,0.3,0.3, 0.19],
+        NTCP_results = TCP_NTCP.complete_NTCP_calc(d_data=[64,74],
+                                                   ntcp_data=[0.24,0.33],
                                                    irrad_perc = 100,
                                                    frac_doses=TCP_results['doses'],
                                                    initial_params_ntcp=None,
                                                    max_dose=100,
-                                                   ntcp_params={'td50_1':(80,10),
-                                                                'v':(0.5,10),
-                                                                'm':(0.51,10),
-                                                                'n':(0.3,10)},
-                                                   fit_vals = True,
+                                                   ntcp_params={'td50_1':(58.2,1.92),
+                                                                'v':(0.08,10),
+                                                                'm':(0.28,37.3),
+                                                                'n':(0.14,16.43)},
+                                                   fit_vals = False,
                                                    )
     
         print(NTCP_results['pop_fit'])
@@ -107,10 +107,28 @@ def TCP_NTCP_calc_plot(d):
 ## 1 patient per row.
 #%%
 
-dose_vars = [0,5] # 0 to 20% dose variaiton from the standard.
+dose_vars = [0] # 0 to 20% dose variaiton from the standard.
 all_results=[]
+
+## add extra things to the plot
+#plt.plot((64,74),(0.60,0.71),ls='',marker='x')
+plt.plot([64,64],[0.47,0.76],marker='+',color='black',alpha=0.5) ##  plot error on the points
+plt.plot([74,74],[0.63,0.90],marker='+',color='black',alpha=0.5)
+
+plt.plot([64,64],[0.18,0.3],marker='+',color='black',alpha=0.5) ##  plot error on the points
+plt.plot([74,74],[0.25,0.41],marker='+',color='black',alpha=0.5)
+
+[0.24,0.33]
+
+plt.grid(True)
+c='red'
 for dose in dose_vars:
     print('Dose Variation (%)',dose)
     results = TCP_NTCP_calc_plot(dose)
     #test = all_results.append(TCP_NTCP_calc_plot(dose))
+    c='blue'
+
 print('Completed All')
+
+print(results['the_ntcps'][74].std())
+print(results['the_tcps'][74].std())
