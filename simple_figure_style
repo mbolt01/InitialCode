@@ -1,0 +1,4 @@
+axes.labelweight    : bold  # weight of the x and y labels
+axes.labelpad       : 15 # label padding
+axes.titlepad       : 30.0     # pad between axes and title in points
+axes.labelcolor     : black
