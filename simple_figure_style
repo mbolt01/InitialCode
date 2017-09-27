@@ -2,3 +2,4 @@ axes.labelweight    : normal  # weight of the x and y labels
 axes.labelpad       : 15 # label padding
 axes.titlepad       : 20.0     # pad between axes and title in points
 axes.labelcolor     : black
+figure.autolayout   : True # seems to do the same as plt.tight_layout() but dont have to call each time
